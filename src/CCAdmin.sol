@@ -3,12 +3,15 @@ pragma solidity ^0.8.13;
 
 import "openzeppelin-contracts/contracts/access/Ownable.sol";
 import "openzeppelin-contracts/contracts/token/ERC721/ERC721.sol";
+//import "forge-std/Test.sol";
+
 
 // MIN duration: hardEnd - softEnd => through Governance
 
 contract CCAdmin is Ownable {
 
     modifier validOption(uint256 optID) {
+        require(options[optID].optionID == optID, "non existent option");
         require(!options[optID].sold, "option already sold");
         require(block.timestamp < (options[optID].softEnd),
         "option already expired");
@@ -34,6 +37,7 @@ contract CCAdmin is Ownable {
         _;
     }
 
+    // useless weil es sowieso reverted waun er den net hot
     modifier onlyNFTOwner(address nftAddress, uint256 identifier) {
         ERC721 token = ERC721(nftAddress);
         require(
@@ -51,10 +55,10 @@ contract CCAdmin is Ownable {
     uint256 private counter;
 
     constructor() {
-        counter = 0;
+        counter = 1;
     }
 
-    struct Option {
+    struct Option{
         // Struct names upper case
         uint256 optionID;
         address creator;
@@ -101,13 +105,22 @@ contract CCAdmin is Ownable {
         );
         // effects
         options[optID] = op;
+
+        // Contract griagt NFT
+        ERC721 nft = ERC721(options[optID].nftAddress);
+        
+        nft.transferFrom(
+            options[optID].creator,
+            address(this),
+            options[optID].nftIdentifier
+        );
         // T ODO EVENT
         return optID;
     }
 
     function buyOption(uint256 optID) public payable validOption(optID) {
         //check
-        require(msg.value == options[optID].premium);
+        require(msg.value == options[optID].premium,"value != premium");
         //effect
         options[optID].sold = true;
         //interaction
@@ -124,8 +137,7 @@ contract CCAdmin is Ownable {
         executable(optID)
     {
         // check if option is owned => modifier optionOwner
-        require(msg.value == options[optID].strikePrice, "value != premium");
-
+        require(msg.value == options[optID].strikePrice, "value != strike Price");
         // check if blockTimestamp > _timestamp  => modifier executable
         // complete option
         options[optID].executed = true;
@@ -133,7 +145,7 @@ contract CCAdmin is Ownable {
 
         // Er zoit strike price
         (bool success, ) = options[optID].creator.call{value: msg.value}("");
-        require(success);
+        require(success, "payment failed");
 
         // Er griagt NFT
         ERC721 nft = ERC721(options[optID].nftAddress);

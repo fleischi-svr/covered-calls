@@ -1,2 +1,5 @@
 cache/
 out/
+.github/
+.gitmodules
+
