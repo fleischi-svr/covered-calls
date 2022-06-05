@@ -91,38 +91,85 @@ contract ContractTest is Test {
     }
 
     // test Exercise Option
-    // test for wrong price
+    // test for wrong price => OK
     function testExerciseOPInvalidPrice() public {
         buyOption();
         emit log("buy worked");
         vm.warp(250);
-        uint256 stprice;
         vm.expectRevert(bytes("value != strike Price"));
         vm.prank(optionBuyer);
         ccAdmin.exerciseOption{value: 2000000000000}(1);
-        assert(true);
     }
 
-    // test for unauth user / not Owner
+    // test for unauth user / not Owner => OK
     function testExerciseOPInvalidUser() public {
-        createOption();
         buyOption();
+        vm.warp(250);
         vm.expectRevert(bytes("option must be owned"));
-        vm.warp(150);
-        // missing vm.prank(optionBuyer);
+        // missing => doesnt work vm.prank(optionBuyer);
+        ccAdmin.exerciseOption{value: 2000000000000}(1);
+
+    }
+
+    // test for expired option => OK
+    function testExerciseOPExpired() public {
+        buyOption();
+        vm.warp(500);
+        vm.expectRevert(bytes("option expired"));
+        vm.prank(optionBuyer);
         ccAdmin.exerciseOption{value: 2000000000000000000}(1);
-        assert(true);
+
     }
 
     // test 4 already executed Option
     function testExerciseOPAlreadyExecuted() public {
-        createOption();
         buyOption();
-        vm.expectRevert(bytes("option must be owned"));
-        vm.warp(150);
+        vm.warp(250);
         vm.prank(optionBuyer);
         ccAdmin.exerciseOption{value: 2000000000000000000}(1);
-        assert(true);
+        vm.expectRevert(bytes("option already executed"));
+        vm.prank(optionBuyer);
+        ccAdmin.exerciseOption{value: 200000000000000000}(1);
+    }
+    // test Exercise Option => OK
+    function testExerciseOP() public { 
+        buyOption();
+        vm.warp(300);
+        vm.prank(optionBuyer);
+        ccAdmin.exerciseOption{value: 2000000000000000000}(1);
+    }
+
+    // test revoke Option Creator NOT Creator => OK
+    function testRevokeOPNCreator() public{ 
+        createOption();
+        vm.prank(optionBuyer);
+        vm.expectRevert("Caller must be the Creator of the Option");
+        ccAdmin.revokeOptionVCreator(1);
+    }
+
+    // test revoke Option Creator => OPTION already sold => OK
+    function testRevokeOPSold() public{ 
+        buyOption();
+        vm.prank(optionCreator);
+        vm.expectRevert("a sold option cannot be revoked");
+        ccAdmin.revokeOptionVCreator(1);
+    }
+
+    // test revoke Option ALL => already sold => OK
+    function testRevokeOPNExpiredAll() public{ 
+        buyOption();
+        vm.warp(100);
+        vm.prank(optionCreator);
+        vm.expectRevert("Option has not expired");
+        ccAdmin.revokeOptionVAll(1);
+    }
+    // test revoke Option ALL => already sold => OK
+    function testRevokeOPNExpiredAll() public{ 
+        buyOption();
+        vm.warp(100);
+        vm.prank(optionCreator);
+        vm.expectRevert("Option has not expired");
+        ccAdmin.revokeOptionVAll(1);
     }
 
     // helper functions
