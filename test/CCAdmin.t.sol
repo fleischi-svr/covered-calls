@@ -163,14 +163,6 @@ contract ContractTest is Test {
         vm.expectRevert("Option has not expired");
         ccAdmin.revokeOptionVAll(1);
     }
-    // test revoke Option ALL => already sold => OK
-    function testRevokeOPNExpiredAll() public{ 
-        buyOption();
-        vm.warp(100);
-        vm.prank(optionCreator);
-        vm.expectRevert("Option has not expired");
-        ccAdmin.revokeOptionVAll(1);
-    }
 
     // helper functions
 
