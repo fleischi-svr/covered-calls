@@ -13,19 +13,17 @@ contract CCAdminV2 is Ownable {
     mapping(bytes32 => bool) public optionExists;
 
     // Errors
-    error NotOwnerError(address owner, address sender);
     error NonExistentOption();
-    error OptionAlreadySold();
     error OptionBuyExpired(uint256 bockTimestamp, uint256 epStart);
+    error OptionExpired(uint256 epEnd, uint256 blockTimestamp);
+    error OptionAlreadyExists();
     error NotInExecutionTimeframe(
         uint256 epStart,
         uint256 epEnd,
         uint256 blockTimestamp
     );
+    error NotOwnerError(address owner, address sender);
     error SenderNotCreator(address creator, address sender); // Überlegen kann ma des so checken bro,
-    error NotNFTOwner();
-    error OptionExpired(uint256 epEnd, uint256 blockTimestamp);
-    error OptionAlreadyExists();
     error WrongAmountPremium(uint256 premium, uint256 msgValue);
     error WrongAmountStrikePrice(uint256 strikeP, uint256 msgValue);
     error CallFailed();
@@ -112,10 +110,12 @@ contract CCAdminV2 is Ownable {
             false
         );
 
+        //mby useless
         // check if there is already such an option
-        if (optionExists[opID]) {
+        /*if (optionExists[opID]) {
             revert OptionAlreadyExists();
         }
+        */
         // set the mapping
         optionExists[opID] = true;
 
@@ -150,16 +150,16 @@ contract CCAdminV2 is Ownable {
             false
         );
 
-        // check if there is already such an option
-        if (optionExists[opID]) {
-            revert OptionAlreadyExists();
+        // check if option exists => cannot buy nonexistent option
+        if (!optionExists[opID]) {
+            revert NonExistentOption();
         }
 
         //effect
         // make new ID => delete old id => insert new one
         bytes32 opIDNew = generateOptionID(
             creator,
-            0x0000000000000000000000000000000000000000,
+            msg.sender,
             nftAddress,
             nftIdentifier,
             premium,
@@ -175,7 +175,7 @@ contract CCAdminV2 is Ownable {
         //interaction => send premium to option creator
         (bool success, ) = creator.call{value: msg.value}("");
         if (!success) {
-            revert CallFailed();
+            revert CallFailed(); // mby useless
         }
     }
 
@@ -198,7 +198,7 @@ contract CCAdminV2 is Ownable {
             revert NotInExecutionTimeframe(epStart, epEnd, block.timestamp);
         }
 
-        // check if option exists
+        // check if option exists => cannot execute non existent option
         bytes32 opID = generateOptionID(
             creator,
             buyer,
@@ -222,7 +222,7 @@ contract CCAdminV2 is Ownable {
         // Caller pays strike price to option creator
         (bool success, ) = creator.call{value: msg.value}("");
 
-        if (success) {
+        if (!success) {
             revert CallFailed();
         }
 
@@ -254,7 +254,7 @@ contract CCAdminV2 is Ownable {
             false
         );
         // if != option already sold or not existent at all != cannot revoke
-        if (optionExists[opID]) {
+        if (!optionExists[opID]) {
             revert NonExistentOption();
         }
 
